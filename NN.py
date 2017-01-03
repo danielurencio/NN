@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 class NN(object):
     def __init__(self,data):
-        self.data = data.values
+        self.data = data#.values
 	self.X = 0
 	self.y = 0
 	self.W = 0
