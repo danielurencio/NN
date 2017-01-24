@@ -10,6 +10,8 @@ class NN(object):
 	self.y = 0
 	self.W = 0
         self.lags = 3
+	self.randX = 0
+	self.randY = 0
         self.arq = {}
 
     def normalize(self,x):
@@ -108,3 +110,60 @@ class NN(object):
         A = self.feed()
         plt.plot(A[len(A)-1])
         plt.show()
+
+    def simpleFeed(self,data):
+        A = []
+        z = data.dot(self.W[0])
+        A.append( self.sigmoid(z) )
+        for i,val in enumerate(self.W):
+            if( i != 0 and i != len(self.W)-1 ):
+                z = A[i-1].dot(self.W[i])
+                A.append( self.sigmoid(z) )
+            if( i == len(self.W)-1 ):
+                A.append( A[i-1].dot(self.W[i]) )
+        return A;
+
+    def simpleDeltas(self,A,Y):
+        index = len(A) - 1
+        maxC = len(A) - 1
+        deltas = [[] for _ in range(len(A))]
+        while( index > -1 ):
+            if(index == maxC):
+                error = A[index] - Y
+                delta = error
+                deltas[index] = delta
+            else:
+                error = deltas[index+1].dot(self.W[index+1].T)
+                delta = error * self.sigmoidPrime(A[index])
+                deltas[index] = delta
+            index -= 1
+        return deltas
+
+    def SGD(self,alpha):
+	self.randomData();
+        for i in range( len(self.randX) ):
+            A = self.simpleFeed(self.randX[i]);
+            self.simpleBackprop(self.randX[i],A,self.randY[i],alpha);
+
+    def simpleBackprop(self,data,A,Y,alpha):
+#        A = self.feed()
+        deltas = self.simpleDeltas(A,Y)
+        self.simpleUpdateWeights(data,A,deltas,alpha)
+#        if (i%10000 == 0):
+#            print(i,np.sum( (A[len(A)-1]-self.y) **2 ))
+
+    def simpleUpdateWeights(self,data,A,deltas,alpha):
+        gradients = []
+        a = A[:]
+        a.insert(0,data)
+#        a.reshape(a.reshape(a.shape[0]),1);
+        for i in range(len(a) - 1):
+	    aa = a[i].reshape( 1, len(a[i]) );
+	    delta = deltas[i].reshape( 1, len(deltas[i]) );
+            self.W[i] -= alpha * aa.T.dot(delta)
+
+    def randomData(self):
+        DATA = np.column_stack((self.X,self.y))
+        np.random.shuffle(DATA)
+	self.randX = DATA[:,0:DATA.shape[1]-1]
+	self.randY = DATA[:,DATA.shape[1]-1].reshape(len(DATA),1)
