@@ -145,6 +145,12 @@ class NN(object):
             A = self.simpleFeed(self.randX[i]);
             self.simpleBackprop(self.randX[i],A,self.randY[i],alpha);
 
+    def cost(self):
+        A = self.feed();
+#	print( np.sum( (A[len(A)-1] - self.y ) ** 2 ) );
+	return np.sum( (A[len(A)-1] - self.y ) ** 2 );
+
+
     def simpleBackprop(self,data,A,Y,alpha):
 #        A = self.feed()
         deltas = self.simpleDeltas(A,Y)
