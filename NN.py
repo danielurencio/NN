@@ -13,19 +13,21 @@ class NN(object):
 	self.randX = 0
 	self.randY = 0
         self.arq = {}
+        self.mean = []
+        self.std = []
 
     def normalize(self,x):
         X = []
         n = x.shape[1]
         for i in range(n):
-            mean = np.mean(x[:,i])
-            std = np.std(x[:,i])
+            mean = np.mean(x[:,i]); self.mean.append(mean);
+            std = np.std(x[:,i]); self.std.append(std);
             a = ( x[:,i] - mean ) / std
             a = a.reshape(a.shape[0],1)
             X.append(a)
         return np.hstack((X))
 
-    def create_dataset(self):
+    def create_dataset(self,denormalized):
         dataX, dataY = [], []
         for i in range(len(self.data)-self.lags-1):
             a = self.data[i:(i+self.lags), 0]
@@ -36,6 +38,8 @@ class NN(object):
         self.y = np.array(dataY)
         self.X = self.normalize(self.X)
         self.y = self.normalize(self.y.reshape((self.y.shape[0],1)))
+        if(denormalized):
+            return [ np.array(dataX), np.array(dataY).reshape(np.array(dataY).shape[0],1) ];
 
     def Weights(self,h):
         W = []
@@ -63,6 +67,20 @@ class NN(object):
             if( i == len(self.W)-1 ):
                 A.append( A[i-1].dot(self.W[i]) )
         return A
+#        return ( A[len(A)-1] * nn.std[len(nn.std)-1] ) + nn.mean[len(nn.mean)-1];
+
+    def Feed(self):
+        A = []
+        z = self.X.dot(self.W[0])
+        A.append( self.sigmoid(z) )
+        for i,val in enumerate(self.W):
+            if( i != 0 and i != len(self.W)-1 ):
+                z = A[i-1].dot(self.W[i])
+                A.append( self.sigmoid(z) )
+            if( i == len(self.W)-1 ):
+                A.append( A[i-1].dot(self.W[i]) )
+#        return A
+        return ( A[len(A)-1] * nn.std[len(nn.std)-1] ) + nn.mean[len(nn.mean)-1];
 
     def Deltas(self,A):
         index = len(A) - 1
@@ -102,7 +120,7 @@ class NN(object):
 
     def arch(self,input,layers):
         self.lags = input
-        self.create_dataset()
+        self.create_dataset(0)
         self.Weights(layers)
 
     def graf(self):
@@ -173,3 +191,31 @@ class NN(object):
         np.random.shuffle(DATA)
 	self.randX = DATA[:,0:DATA.shape[1]-1]
 	self.randY = DATA[:,DATA.shape[1]-1].reshape(len(DATA),1)
+
+    def trainSGD(self,iter,alpha):
+        costs = [];
+        for i in range(iter):
+            self.SGD(alpha);
+            costs.append(self.cost());
+
+        while self.cost() > np.round(np.min(costs))+1:
+            self.SGD(iter);
+
+
+    def predict(self,data):
+        vals = []
+        for i in range(len(data)):
+            val = (data[i] - self.mean[i]) / self.std[i];
+            vals.append(val);
+        data = np.array(vals);
+        A = []
+        z = data.dot(self.W[0])
+        A.append( self.sigmoid(z) )
+        for i,val in enumerate(self.W):
+            if( i != 0 and i != len(self.W)-1 ):
+                z = A[i-1].dot(self.W[i])
+                A.append( self.sigmoid(z) )
+            if( i == len(self.W)-1 ):
+                A.append( A[i-1].dot(self.W[i]) )
+        return (A[len(A)-1] * self.std[len(self.std)-1] + nn.mean[len(self.mean)-1])[0];
+        
