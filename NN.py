@@ -218,4 +218,14 @@ class NN(object):
             if( i == len(self.W)-1 ):
                 A.append( A[i-1].dot(self.W[i]) )
         return (A[len(A)-1] * self.std[len(self.std)-1] + nn.mean[len(self.mean)-1])[0];
-        
+
+    def difs(self,lag):
+        self.lags = lag;
+        arr = [];
+        x = self.create_dataset(1)[0];
+        for i in x:
+            a = [];
+            for j in range(len(i)):
+                if( j != 0 ): a.append( i[len(i) - j - 1] - i[len(i) - j - 2] );
+                if( j == len(i) - 1 ): arr.append(a);
+        return arr;
