@@ -17,7 +17,8 @@ var ARRAY = [];
 
 
 MongoClient.connect("mongodb://localhost:27017/fx", function(err,db) {
-  var stream = db.collection("EURUSD").find(query,{_id:0}).stream();
+  var stream = db.collection("EURUSD").find(query,{_id:0})
+	.sort({'year':1,'month':1,'day':1,'hour':1,'minutes':1,'seconds':1,'ms':1}).stream();
 
   stream.on("data", function(doc) {
     show(doc,FAST,SLOW);
@@ -38,22 +39,30 @@ MongoClient.connect("mongodb://localhost:27017/fx", function(err,db) {
         if(d.values[0].bid - d.values[d.values.length-1].ask > 0) d.kind = "win"
         if(d.values[0].bid - d.values[d.values.length-1].ask < 0) d.kind = "lose"
         d.gain = d.values[0].bid - d.values[d.values.length-1].ask;
-      } 
+      }
+      d.FAST = Number(FAST);
+      d.SLOW = Number(SLOW);
+      d.date = {
+	'year':d.values[0].year,
+	'month':d.values[0].month,
+	'day':d.values[0].day,
+	'hour':d.values[0].hour,
+	'minutes':d.values[0].minutes
+      }
   
     });
 
 
 var prf = ARRAY.map(function(d) { return d.gain; }).reduce(function sum(a,b) { return a + b; });
-console.log(prf*10000);
-process.exit();
-/* Insertar el mes entero
+prf = prf*10000;
+var profDoc = { "year":año, "month":mes, "cross":FAST + "_" + SLOW, "profit":prf };
 
-    var colName = "t_"+año+"_"+mes+"_"+FAST+"_"+SLOW;
-    db.collection(colName).insert(ARRAY, function() {
+//    var colName = "t_"+año+"_"+mes+"_"+FAST+"_"+SLOW;
+    db.collection("profits").insert(ARRAY, function() {
       console.log(ARRAY.length)
       process.exit();
     });
-*/
+
   })
 
 });
@@ -94,14 +103,26 @@ function show(doc,F,S) {
 	trendControl.push(trend);
       }
 
-      if(trendControl[0]-trendControl[1] == 1) ARRAY.push(new Trend(trend,arr[0]));
-      if(trendControl[0]-trendControl[1] == -1) ARRAY.push(new Trend(trend,arr[0]));
+      if(trendControl[0]-trendControl[1] == 1) {
+        arr[0].fast = fast;
+	arr[0].slow = slow;
+	ARRAY.push(new Trend(trend,arr[0]));
+      }
+      if(trendControl[0]-trendControl[1] == -1) {
+	arr[0].fast = fast;
+	arr[0].slow = slow;
+	ARRAY.push(new Trend(trend,arr[0]));
+      }
 
       if( trendControl[0] == 1 && trendControl[1] == 1 && ARRAY.length != 0) {
+        arr[0].fast = fast;
+	arr[0].slow = slow;
         ARRAY[ARRAY.length-1].values.push(arr[0]);
 //        if(ARRAY[ARRAY.length-2]) ARRAY[ARRAY.length-2].values.push(arr[0]);
       }
       if( trendControl[0] == 0 && trendControl[1] == 0 && ARRAY.length != 0) {
+        arr[0].fast = fast;
+	arr[0].slow = slow;
         ARRAY[ARRAY.length-1].values.push(arr[0]);
 //        if(ARRAY[ARRAY.length-2]) ARRAY[ARRAY.length-2].values.push(arr[0]);
       }
@@ -117,12 +138,20 @@ function show(doc,F,S) {
 function Trend(dir,doc) {
   this.values = [doc]
   this.direction = dir;
-  this.high = 0;
+  this.high = { val:0 };
+  this.low = { val:1000 };
 }
 
 Trend.prototype.High = function(doc) {
   if(this.direction) {
-   if(doc.ask > this.high) this.high = doc.ask;
+   if(doc.bid > this.high.val) this.high = { val:doc.bid,day:doc.day,hour:doc.hour,min:doc.minutes };
+   if(doc.bid < this.low.val) this.low = { val:doc.bid,day:doc.day,hour:doc.hour,min:doc.minutes };
   }
+
+  if(!this.direction) {
+   if(doc.ask > this.high.val) this.high = { val:doc.ask,day:doc.day,hour:doc.hour,min:doc.minutes };
+   if(doc.ask < this.low.val) this.low = { val:doc.ask,day:doc.day,hour:doc.hour,min:doc.minutes };
+  }
+
 }
 
